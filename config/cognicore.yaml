@@ -1,0 +1,26 @@
+app:
+  debug: false
+  name: CogniCore Portable
+  version: 2.1.0
+knowledge:
+  enabled: false
+memory:
+  directory: memory
+  vector_db_path: ../data/vector_db
+  vector_model: ollama:nomic-embed-text-v2-moe
+models:
+  assistants:
+    enabled: false
+  default: qwen2.5:1.5b
+  ollama_url: http://192.168.3.105:11434
+  providers:
+    ollama:
+      enabled: true
+      models: []
+  refresh_interval: 300
+server:
+  host: 0.0.0.0
+  port: 8002
+  workers: 1
+voice:
+  enabled: false

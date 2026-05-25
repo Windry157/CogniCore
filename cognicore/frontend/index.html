@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CogniCore 便携智能助手</title>
+<style>
+:root {
+  --bg: #f0f2f5; --card: #fff; --text: #1a1a2e; --muted: #6b7280;
+  --primary: #4f46e5; --primary-hover: #4338ca; --success: #10b981;
+  --warning: #f59e0b; --danger: #ef4444; --border: #e5e7eb;
+  --chat-user: #4f46e5; --chat-assistant: #fff;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+       background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+
+/* Header */
+header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #fff;
+         padding: 20px 32px; display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+header .badge { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+header .subtitle { font-size: 13px; opacity: 0.85; margin-left: auto; }
+
+/* Container */
+.container { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+
+/* Cards */
+.card { background: var(--card); border-radius: 12px; padding: 20px 24px;
+        margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--muted); }
+
+/* Status Grid - consistent layout */
+.status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.status-item { background: #f8f9fa; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.status-item .label { font-size: 12px; color: var(--muted); }
+.status-item .value { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 6px; overflow-wrap: break-word; word-break: break-word; }
+.status-item .sub { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot.ok { background: var(--success); }
+.dot.warn { background: var(--warning); }
+.dot.err { background: var(--danger); }
+.dot.off { background: #d1d5db; }
+
+/* Steps */
+.wizard-step { display: none; padding: 8px 0; }
+.wizard-step.active { display: block; }
+.step-indicator { display: flex; gap: 8px; margin-bottom: 24px; }
+.step-dot { flex: 1; height: 4px; border-radius: 2px; background: var(--border);
+            transition: background 0.3s; }
+.step-dot.done { background: var(--success); }
+.step-dot.current { background: var(--primary); }
+
+/* Actions */
+.actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px;
+       border: none; border-radius: 8px; font-size: 14px; font-weight: 500;
+       cursor: pointer; transition: all 0.15s; text-decoration: none; }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: #e5e7eb; color: var(--text); }
+.btn-secondary:hover { background: #d1d5db; }
+.btn-success { background: var(--success); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+
+/* Logs */
+.log-box { background: #1a1a2e; color: #e5e7eb; border-radius: 8px; padding: 12px 16px;
+           font-family: "Cascadia Code", "JetBrains Mono", monospace; font-size: 12px;
+           max-height: 200px; overflow-y: auto; line-height: 1.5; margin-top: 12px; }
+.log-box .info { color: #60a5fa; }
+.log-box .ok { color: #34d399; }
+.log-box .err { color: #f87171; }
+.log-box .warn { color: #fbbf24; }
+
+/* Metric Bar */
+.metric-bar { display: flex; align-items: center; gap: 12px; margin: 4px 0; }
+.metric-bar .fill { flex: 1; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+.metric-bar .fill > div { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.metric-bar .label { font-size: 12px; min-width: 80px; color: var(--muted); }
+.metric-bar .pct { font-size: 12px; font-weight: 600; min-width: 40px; text-align: right; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; background: #e5e7eb;
+        border-radius: 10px; padding: 3px; overflow-x: auto; }
+.tab { flex: 1; text-align: center; padding: 8px 16px; border-radius: 8px;
+       font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+       border: none; background: transparent; color: var(--muted); white-space: nowrap; }
+.tab:hover { color: var(--text); }
+.tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Chat */
+#chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex;
+                 flex-direction: column; gap: 12px; min-height: 0; }
+.msg { display: flex; }
+.msg.user { justify-content: flex-end; }
+.msg.assistant { justify-content: flex-start; }
+.msg .bubble { max-width: 80%; padding: 10px 16px; border-radius: 14px;
+               font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.msg.user .bubble { background: var(--chat-user); color: #fff; border-bottom-right-radius: 4px; }
+.msg.assistant .bubble { background: var(--chat-assistant); border: 1px solid var(--border);
+                         border-bottom-left-radius: 4px; color: var(--text); }
+.msg .time { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.msg.user .time { text-align: right; }
+.msg.thinking .bubble { background: #f3f4f6; border: 1px solid var(--border); color: var(--muted); font-style: italic; display: flex; align-items: center; gap: 8px; }
+.msg.thinking .bubble::after { content: ''; width: 8px; height: 8px; background: var(--primary); border-radius: 50%; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+.msg-actions { display: flex; gap: 4px; margin-top: 2px; }
+.msg-actions button { background: none; border: none; cursor: pointer; font-size: 11px; color: var(--muted); padding: 2px 6px; border-radius: 4px; }
+.msg-actions button:hover { background: var(--border); color: var(--text); }
+.msg.user .msg-actions { justify-content: flex-end; }
+#file-input { display: none; }
+
+/* Skill Grid */
+.skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.skill-card { border: 1.5px solid var(--border); border-radius: 10px; padding: 14px; background: #f8f9fa; transition: all 0.15s; }
+.skill-card:hover { border-color: var(--primary); background: #eef2ff; }
+.skill-card .s-icon { font-size: 24px; margin-bottom: 6px; }
+.skill-card .s-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.skill-card .s-desc { font-size: 12px; color: var(--muted); }
+
+/* Model Grid */
+.model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 320px; overflow-y: auto; }
+.model-card { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: all 0.15s; background: #f8f9fa; }
+.model-card:hover { border-color: var(--primary); background: #eef2ff; }
+.model-card.selected { border-color: var(--primary); background: #eef2ff; box-shadow: 0 0 0 2px rgba(79,70,229,0.2); }
+.model-card .m-name { font-size: 14px; font-weight: 600; word-break: break-all; }
+.model-card .m-size { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.model-card .m-detail { font-size: 11px; color: var(--muted); }
+.model-badge { display: inline-block; background: var(--success); color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; }
+
+/* File Browser */
+.file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.file-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: all 0.15s; background: #f8f9fa; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.file-item:hover { border-color: var(--primary); background: #eef2ff; }
+.file-item .fi-icon { font-size: 18px; flex-shrink: 0; }
+.file-item .fi-name { word-break: break-all; flex: 1; }
+.file-item .fi-size { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+/* Info Table */
+.info-table { width: 100%; font-size: 13px; }
+.info-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.info-table td:first-child { color: var(--muted); width: 140px; white-space: nowrap; }
+
+/* Pull progress */
+.pull-progress { margin-top: 12px; }
+.pull-progress .bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.pull-progress .bar > div { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.3s; width: 0%; }
+.pull-progress .info { font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; justify-content: space-between; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+                 z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--card); border-radius: 16px; padding: 28px 32px;
+         max-width: 520px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.15); max-height: 80vh; overflow-y: auto; }
+.modal h3 { margin-bottom: 8px; }
+.modal p { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+
+/* Progress ring */
+.progress-ring { width: 60px; height: 60px; border-radius: 50%; border: 6px solid var(--border); border-top-color: var(--primary); animation: spin 1s linear infinite; margin: 12px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Info rows */
+.info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.info-row:last-child { border-bottom: none; }
+.info-row .ir-label { color: var(--muted); }
+.info-row .ir-value { font-weight: 500; text-align: right; }
+
+/* Util */
+.text-center { text-align: center; }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mb-8 { margin-bottom: 8px; }
+.gap-8 { gap: 8px; }
+.flex { display: flex; align-items: center; }
+.flex-wrap { flex-wrap: wrap; }
+.hidden { display: none !important; }
+.w-full { width: 100%; }
+
+/* Path bar */
+.path-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #f8f9fa; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
+.path-bar input { flex: 1; border: none; background: transparent; font-size: 13px; outline: none; font-family: monospace; }
+
+/* Config editor */
+.config-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.config-row:last-child { border-bottom: none; }
+.config-row .cr-label { font-size: 13px; color: var(--muted); min-width: 100px; }
+.config-row .cr-value { flex: 1; font-size: 13px; font-family: monospace; }
+.config-row input { flex: 1; padding: 6px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  header { padding: 16px; flex-wrap: wrap; }
+  header .subtitle { margin-left: 0; width: 100%; }
+  .container { margin: 12px auto; }
+  .card { padding: 16px; }
+  .status-grid { grid-template-columns: 1fr 1fr; }
+  .skill-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ CogniCore</h1>
+  <span class="badge">v2.1.0 Portable</span>
+  <span class="subtitle">随身智能助手</span>
+</header>
+
+<div class="container">
+
+  <!-- Tabs -->
+  <div class="tabs" id="tab-bar">
+    <button class="tab active" data-tab="dashboard">📊 仪表盘</button>
+    <button class="tab" data-tab="skills">🛠️ 技能</button>
+    <button class="tab" data-tab="system">⚙️ 系统</button>
+    <button class="tab" data-tab="chat">💬 对话</button>
+  </div>
+
+  <!-- ==================== Tab: Dashboard ==================== -->
+  <div class="tab-content active" id="tab-dashboard">
+    <div class="card">
+      <h2>📊 系统状态</h2>
+      <div class="status-grid" id="status-grid">
+        <div class="status-item">
+          <div class="label">运行环境</div>
+          <div class="value"><span class="dot" id="d-venv"></span><span id="d-venv-text">检查中...</span></div>
+          <div class="sub">依赖库</div>
+        </div>
+        <div class="status-item">
+          <div class="label">AI 引擎</div>
+          <div class="value"><span class="dot" id="d-ollama"></span><span id="d-ollama-text">检查中...</span></div>
+          <div class="sub" id="d-ollama-sub">Ollama</div>
+        </div>
+        <div class="status-item">
+          <div class="label">AI 模型</div>
+          <div class="value"><span class="dot" id="d-model"></span><span id="d-model-text">检查中...</span></div>
+          <div class="sub" id="d-model-sub">-</div>
+        </div>
+        <div class="status-item">
+          <div class="label">记忆系统</div>
+          <div class="value"><span class="dot" id="d-memory"></span><span id="d-memory-text">检查中...</span></div>
+          <div class="sub" id="d-memory-sub">-</div>
+        </div>
+        <div class="status-item">
+          <div class="label">技能数量</div>
+          <div class="value" id="d-skills">-</div>
+          <div class="sub">注册技能</div>
+        </div>
+        <div class="status-item">
+          <div class="label">MCP 协议</div>
+          <div class="value"><span class="dot" id="d-mcp"></span><span id="d-mcp-text">检查中...</span></div>
+          <div class="sub">Model Context Protocol</div>
+        </div>
+        <div class="status-item">
+          <div class="label">CPU 占用</div>
+          <div class="value" id="d-cpu">-</div>
+          <div class="sub" id="d-cpu-sub">-</div>
+        </div>
+        <div class="status-item">
+          <div class="label">内存占用</div>
+          <div class="value" id="d-mem">-</div>
+          <div class="sub" id="d-mem-sub">-</div>
+        </div>
+        <div class="status-item">
+          <div class="label">磁盘占用</div>
+          <div class="value" id="d-disk">-</div>
+          <div class="sub" id="d-disk-sub">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📈 资源监控</h2>
+      <div class="metric-bar">
+        <span class="label">CPU</span>
+        <div class="fill"><div id="cpu-bar" style="width:0%;background:var(--primary)"></div></div>
+        <span class="pct" id="cpu-pct">0%</span>
+      </div>
+      <div class="metric-bar">
+        <span class="label">内存</span>
+        <div class="fill"><div id="mem-bar" style="width:0%;background:var(--warning)"></div></div>
+        <span class="pct" id="mem-pct">0%</span>
+      </div>
+      <div class="metric-bar">
+        <span class="label">磁盘</span>
+        <div class="fill"><div id="disk-bar" style="width:0%;background:var(--danger)"></div></div>
+        <span class="pct" id="disk-pct">0%</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🧠 认知统计</h2>
+      <div class="status-grid" id="cognition-grid">
+        <div class="status-item">
+          <div class="label">System1 调用</div>
+          <div class="value" id="c-sys1">-</div>
+          <div class="sub">快速响应</div>
+        </div>
+        <div class="status-item">
+          <div class="label">System2 调用</div>
+          <div class="value" id="c-sys2">-</div>
+          <div class="sub">深度推理</div>
+        </div>
+        <div class="status-item">
+          <div class="label">平均响应时间</div>
+          <div class="value" id="c-avgtime">-</div>
+          <div class="sub">毫秒</div>
+        </div>
+        <div class="status-item">
+          <div class="label">熔断器</div>
+          <div class="value"><span class="dot" id="c-circuit"></span><span id="c-circuit-text">检查中...</span></div>
+          <div class="sub" id="c-circuit-sub">Circuit Breaker</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🔗 快捷入口</h2>
+      <div class="actions flex-wrap">
+        <a href="/docs" class="btn btn-outline btn-sm" target="_blank">📖 API 文档</a>
+        <a href="/health" class="btn btn-outline btn-sm" target="_blank">💚 健康检查</a>
+        <a href="/mcp" class="btn btn-outline btn-sm" target="_blank">🔌 MCP 协议</a>
+        <a href="/health/full" class="btn btn-outline btn-sm" target="_blank">📋 完整健康报告</a>
+        <a href="/ops/dashboard" class="btn btn-outline btn-sm" target="_blank">📊 运营仪表盘</a>
+        <button class="btn btn-outline btn-sm" onclick="refreshDashboard()">🔄 刷新</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Tab: Models ==================== -->
+
+
+  <!-- ==================== Tab: Skills ==================== -->
+  <div class="tab-content" id="tab-skills">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h2 style="margin:0">🛠️ 技能清单</h2>
+        <button class="btn btn-outline btn-sm" onclick="loadSkills()">🔄 刷新</button>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">以下技能可通过 AI 对话或 API 调用</p>
+      <div class="skill-grid" id="skill-grid">
+        <div style="color:var(--muted);padding:40px 0;text-align:center;grid-column:1/-1">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Tab: System ==================== -->
+  <div class="tab-content" id="tab-system">
+
+    <div class="card">
+      <h2>🤖 AI 引擎</h2>
+      <div class="info-row">
+        <span class="ir-label">当前模型</span>
+        <span class="ir-value" id="current-model-display">-</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-label">引擎地址</span>
+        <span class="ir-value" id="ollama-url-display">-</span>
+      </div>
+      <div class="actions mt-16">
+        <button class="btn btn-primary" onclick="checkOllamaConn()">🔍 检查连接</button>
+        <button class="btn btn-outline" onclick="refreshModelList()">🔄 刷新列表</button>
+      </div>
+      <div class="log-box hidden" id="model-conn-log" style="max-height:100px"></div>
+
+      <h3 class="mt-16">📦 可用模型</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">点击模型卡片设为默认</p>
+      <div id="model-list">
+        <div style="color:var(--muted);padding:20px 0;text-align:center">请先检查连接</div>
+      </div>
+      <div class="log-box hidden" id="model-set-log" style="max-height:100px"></div>
+
+      <h3 class="mt-16">⬇️ 下载模型</h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="pull-model-input" type="text" value="qwen2.5:0.5b" placeholder="模型名称"
+               style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none"
+               onkeydown="if(event.key==='Enter') pullModel()">
+        <button class="btn btn-primary" onclick="pullModel()" id="pull-btn">⬇️ 下载</button>
+        <button class="btn btn-secondary" onclick="fetchRecommendedModels()">📋 推荐</button>
+      </div>
+      <div class="pull-progress hidden" id="pull-progress">
+        <div class="bar"><div id="pull-bar"></div></div>
+        <div class="info">
+          <span id="pull-status">准备中...</span>
+          <span id="pull-pct">0%</span>
+        </div>
+      </div>
+      <div class="log-box hidden" id="pull-log" style="max-height:150px"></div>
+      <div id="recommended-models" class="hidden mt-8" style="display:flex;flex-wrap:wrap;gap:6px">
+        <span style="font-size:12px;color:var(--muted);margin-right:4px">推荐:</span>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('pull-model-input').value='llama3.1:8b'">llama3.1:8b</button>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('pull-model-input').value='qwen3.5:9b'">qwen3.5:9b</button>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('pull-model-input').value='gemma4:e4b'">gemma4:e4b</button>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('pull-model-input').value='deepseek-coder-v2:16b'">deepseek-coder-v2:16b</button>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('pull-model-input').value='nomic-embed-text-v2-moe'">nomic-embed-text-v2-moe</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>💻 系统信息</h2>
+      <div class="info-table" id="sysinfo-table">
+        <table style="width:100%">
+          <tr><td>平台</td><td id="si-platform">-</td></tr>
+          <tr><td>主机名</td><td id="si-hostname">-</td></tr>
+          <tr><td>Python 版本</td><td id="si-python">-</td></tr>
+          <tr><td>CPU 核心</td><td id="si-cpu-cores">-</td></tr>
+          <tr><td>总内存</td><td id="si-total-mem">-</td></tr>
+          <tr><td>启动时间</td><td id="si-boot">-</td></tr>
+        </table>
+        <button class="btn btn-outline btn-sm mt-8" onclick="loadSystemInfo()">🔄 刷新</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📂 文件浏览器</h2>
+      <div class="path-bar">
+        <span>📁</span>
+        <input id="fb-path" type="text" value="" placeholder="输入路径回车浏览..."
+               onkeydown="if(event.key==='Enter') browseFiles(this.value)">
+        <button class="btn btn-sm btn-secondary" onclick="browseFiles(document.getElementById('fb-path').value)">浏览</button>
+        <button class="btn btn-sm btn-outline" onclick="browseFiles('')">🏠 家目录</button>
+      </div>
+      <div class="file-grid" id="file-grid">
+        <div style="color:var(--muted);padding:40px 0;text-align:center;grid-column:1/-1">输入路径开始浏览</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📝 系统日志</h2>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <button class="btn btn-outline btn-sm" onclick="loadLogs()">🔄 刷新日志</button>
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px">
+          <input type="checkbox" id="log-auto-refresh" onchange="toggleLogAutoRefresh()"> 自动刷新
+        </label>
+      </div>
+      <div class="log-box" id="log-box" style="max-height:300px;font-size:11px">
+        <div class="info">点击刷新加载日志</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🧹 记忆管理</h2>
+      <div class="info-row"><span class="ir-label">记忆条目</span><span class="ir-value" id="mem-count">-</span></div>
+      <div class="info-row"><span class="ir-label">记忆目录</span><span class="ir-value" id="mem-dir">-</span></div>
+      <div class="actions mt-8">
+        <button class="btn btn-outline btn-sm" onclick="loadMemoryCount()">🔄 刷新</button>
+        <button class="btn btn-danger btn-sm" onclick="clearMemory()">🗑️ 清空记忆</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Tab: Chat ==================== -->
+  <div class="tab-content" id="tab-chat">
+    <div class="card" style="display:flex;flex-direction:column;height:65vh;padding:0">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <h2 style="margin:0">💬 智能对话 <span id="chat-model-badge" style="font-size:11px;font-weight:500;color:var(--muted);margin-left:8px;padding:2px 8px;background:#f0f0f0;border-radius:4px">...</span></h2>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="regenerateLast()" id="btn-regenerate" title="重新生成" disabled>🔄 重新生成</button>
+          <button class="btn btn-secondary btn-sm" onclick="copyAllChat()" title="复制全部对话">📋 复制全部</button>
+          <button class="btn btn-secondary btn-sm" onclick="clearChat()" title="清空对话">🗑️ 清空</button>
+        </div>
+      </div>
+      <div id="chat-messages">
+        <div style="color:var(--muted);text-align:center;padding:60px 20px;flex:1;display:flex;align-items:center;justify-content:center">
+          输入消息开始对话
+        </div>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;background:#f8f9fa;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('file-input').click()" title="上传文件/图片" style="padding:8px 10px;font-size:16px">📎</button>
+        <input id="file-input" type="file" onchange="handleFileUpload(event)" accept=".txt,.md,.py,.js,.ts,.json,.yaml,.yml,.csv,.xml,.html,.css,.sh,.bat,.ps1,.log,.ini,.cfg,.toml,.env,.png,.jpg,.jpeg,.gif,.webp,.svg">
+        <input id="chat-input" type="text" placeholder="输入任务或问题，回车发送... Ctrl+V 贴图" style="flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none"
+          onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendChat(); }"
+          onpaste="handlePaste(event)">
+        <button class="btn btn-primary" onclick="sendChat()" id="chat-send">发送</button>
+      </div>
+      <div id="file-info" style="display:none;padding:4px 16px 8px;font-size:12px;color:var(--muted);background:#f8f9fa;border-top:1px solid var(--border)"></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align:center;padding:24px 0;color:var(--muted);font-size:12px">
+    CogniCore Portable v2.1.0 &mdash; 基于 <a href="https://github.com/anomalyco/opencode" target="_blank" style="color:var(--primary)">OpenCode</a>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">提示</h3>
+    <p id="modal-body">内容</p>
+    <div class="actions" style="justify-content:flex-end">
+      <button class="btn btn-primary" onclick="closeModal()">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// === State ===
+let chatPending = false;
+let lastUserMsg = '';
+let attachedFile = null;
+let attachedImages = [];
+let logAutoRefreshTimer = null;
+
+// === Tab ===
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+  });
+});
+
+// === Status helpers ===
+function setStatus(id, ok, text, sub) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const dot = el.classList.contains('dot') ? el : el.querySelector('.dot');
+  const txt = el.classList.contains('dot') ? el.nextElementSibling : (document.getElementById(id + '-text') || el);
+  if (dot) {
+    dot.className = 'dot';
+    dot.classList.add(ok === true ? 'ok' : ok === false ? 'err' : ok === null ? 'off' : 'warn');
+  }
+  if (text !== undefined && txt) txt.textContent = text;
+  if (sub !== undefined) {
+    const subEl = document.getElementById(id + '-sub');
+    if (subEl) subEl.textContent = sub;
+  }
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
+}
+
+function showModal(title, body) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent = body;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+// ================================================================
+// DASHBOARD
+// ================================================================
+async function refreshDashboard() {
+  try {
+    const r = await fetch('/launcher/status');
+    const d = await r.json();
+
+    setStatus('d-venv', d.venv, d.venv ? '就绪' : '运行环境异常', 'Python 环境');
+    setStatus('d-ollama', d.ollama_connected,
+      d.ollama_connected ? `已连接 (${d.ollama_version || '?'})` : '未连接',
+      d.ollama_connected ? 'Ollama' : '需启动 Ollama');
+    setStatus('d-model',
+      d.model_loaded ? true : (d.ollama_connected ? false : null),
+      d.model_loaded ? (d.model_name || '已加载') : (d.ollama_connected ? '无模型' : 'Ollama 未连接'),
+      d.model_size || (d.ollama_connected ? '需选择模型' : '-'));
+
+    setStatus('d-memory', d.memory_healthy,
+      d.memory_healthy ? '正常' : '异常',
+      d.memory_count ? `${d.memory_count} 条` : '-');
+    document.getElementById('d-skills').textContent = d.skills_count !== null ? `${d.skills_count} 个` : '-';
+
+    // MCP status
+    try {
+      const mr = await fetch('/mcp');
+      if (mr.ok) setStatus('d-mcp', true, '已启用', 'Model Context Protocol');
+      else setStatus('d-mcp', false, '异常', 'MCP');
+    } catch (e) {
+      setStatus('d-mcp', false, '未连接', 'MCP');
+    }
+
+    // Resource values
+    document.getElementById('d-cpu').textContent = d.cpu !== null ? `${d.cpu}%` : '-';
+    document.getElementById('d-mem').textContent = d.memory !== null ? `${d.memory}%` : '-';
+    document.getElementById('d-disk').textContent = d.disk !== null ? `${d.disk}%` : '-';
+
+    document.getElementById('d-cpu-sub').textContent = d.cpu !== null ? `CPU 占用` : '-';
+    document.getElementById('d-mem-sub').textContent = d.memory !== null ? `内存占用` : '-';
+    document.getElementById('d-disk-sub').textContent = d.disk !== null ? `磁盘占用` : '-';
+
+    // Bars
+    if (d.cpu !== null) {
+      document.getElementById('cpu-bar').style.width = d.cpu + '%';
+      document.getElementById('cpu-pct').textContent = d.cpu + '%';
+    }
+    if (d.memory !== null) {
+      document.getElementById('mem-bar').style.width = d.memory + '%';
+      document.getElementById('mem-pct').textContent = d.memory + '%';
+    }
+    if (d.disk !== null) {
+      document.getElementById('disk-bar').style.width = d.disk + '%';
+      document.getElementById('disk-pct').textContent = d.disk + '%';
+    }
+  } catch (e) {
+    ['d-venv','d-ollama','d-model','d-memory','d-mcp'].forEach(id => setStatus(id, null, '获取失败'));
+  }
+}
+
+async function loadCognitionStats() {
+  try {
+    const r = await fetch('/api/cognition/stats');
+    const d = await r.json();
+    document.getElementById('c-sys1').textContent = d.system1_calls ?? '-';
+    document.getElementById('c-sys2').textContent = d.system2_calls ?? '-';
+    document.getElementById('c-avgtime').textContent = d.avg_response_time ? `${d.avg_response_time}ms` : '-';
+  } catch (_) {}
+}
+
+async function loadCircuitStatus() {
+  try {
+    const r = await fetch('/api/resilience/circuit');
+    const d = await r.json();
+    const status = d.status || 'closed';
+    const ok = status === 'closed';
+    setStatus('c-circuit', ok,
+      status === 'closed' ? '正常运行' : status === 'open' ? '已熔断' : '半开',
+      d.failures ? `${d.failures} 次失败` : '无故障');
+  } catch (_) {
+    setStatus('c-circuit', null, '未获取', '-');
+  }
+}
+
+// ================================================================
+// MODELS
+// ================================================================
+async function checkOllamaConn() {
+  const btn = document.querySelector('#tab-system .btn-primary');
+  const log = document.getElementById('model-conn-log');
+  btn.disabled = true; log.classList.remove('hidden');
+  log.innerHTML = '<div class="info">⏳ 正在检查 Ollama 连接...</div>';
+  try {
+    const r = await fetch('/launcher/ollama/check', {method:'POST'});
+    const d = await r.json();
+    if (d.connected) {
+      log.innerHTML = `<div class="ok">✅ Ollama 已连接</div>`;
+      if (d.models && d.models.length) {
+        log.innerHTML += `<div class="ok">📦 可用模型: ${d.models.slice(0,10).join(', ')}${d.models.length > 10 ? '...' : ''}</div>`;
+      }
+      refreshModelList();
+    } else {
+      log.innerHTML = `<div class="err">❌ Ollama 未连接</div>`;
+    }
+  } catch(e) {
+    log.innerHTML = `<div class="err">❌ 请求失败: ${e.message}</div>`;
+  }
+  btn.disabled = false;
+}
+
+async function refreshModelList() {
+  const container = document.getElementById('model-list');
+  container.innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center">加载中...</div>';
+  try {
+    const r = await fetch('/launcher/status');
+    const s = await r.json();
+    const mn = s.model_name || '-';
+    document.getElementById('current-model-display').textContent = mn;
+    const badge = document.getElementById('chat-model-badge');
+    if (badge) badge.textContent = mn;
+    document.getElementById('ollama-url-display').textContent = '检查中...';
+  } catch (_) {}
+
+  try {
+    const r = await fetch('/launcher/ollama/models', {method:'POST'});
+    const d = await r.json();
+    if (!d.models || d.models.length === 0) {
+      container.innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center">暂无可用模型</div>';
+      return;
+    }
+    let html = '<div class="model-grid">';
+    for (const m of d.models) {
+      const sz = m.size > 0 ? `${(m.size / 1e9).toFixed(1)} GB` : '?';
+      const detail = [m.details.parameter_size, m.details.quantization_level, m.details.family].filter(Boolean).join(' / ');
+      html += `<div class="model-card" onclick="selectModel('${m.name.replace(/'/g,"\\'")}')">
+        <div class="m-name">${m.name}</div>
+        <div class="m-size">${sz}</div>
+        ${detail ? `<div class="m-detail">${detail}</div>` : ''}
+      </div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = `<div style="color:var(--danger);padding:20px 0;text-align:center">加载失败: ${e.message}</div>`;
+  }
+
+  try {
+    const cr = await fetch('/api/config');
+    const cd = await cr.json();
+    document.getElementById('ollama-url-display').textContent = cd.llm?.provider || '-';
+  } catch (_) {}
+}
+
+async function selectModel(name) {
+  document.querySelectorAll('.model-card').forEach(c => c.classList.remove('selected'));
+  for (const c of document.querySelectorAll('.model-card')) {
+    if (c.querySelector('.m-name').textContent === name) c.classList.add('selected');
+  }
+  const log = document.getElementById('model-set-log');
+  log.classList.remove('hidden');
+  log.innerHTML = `<div class="info">⏳ 正在设置默认模型: ${name}...</div>`;
+  try {
+    const r = await fetch('/launcher/config/model', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model: name})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      log.innerHTML = `<div class="ok">✅ 默认模型已设为 ${name}</div>`;
+      document.getElementById('current-model-display').textContent = name;
+      const badge = document.getElementById('chat-model-badge');
+      if (badge) badge.textContent = name;
+    } else {
+      log.innerHTML = `<div class="err">❌ 设置失败: ${d.error}</div>`;
+    }
+  } catch(e) {
+    log.innerHTML = `<div class="err">❌ 请求失败: ${e.message}</div>`;
+  }
+}
+
+async function pullModel() {
+  const name = document.getElementById('pull-model-input').value.trim();
+  if (!name) { showModal('提示', '请输入模型名称'); return; }
+  const btn = document.getElementById('pull-btn');
+  const progress = document.getElementById('pull-progress');
+  const bar = document.getElementById('pull-bar');
+  const status = document.getElementById('pull-status');
+  const pct = document.getElementById('pull-pct');
+  const log = document.getElementById('pull-log');
+
+  btn.disabled = true;
+  progress.classList.remove('hidden');
+  log.classList.remove('hidden');
+  log.innerHTML = '';
+  bar.style.width = '0%';
+  status.textContent = '正在连接...';
+  pct.textContent = '0%';
+
+  try {
+    const r = await fetch('/launcher/ollama/pull', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model: name})
+    });
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.status) {
+            status.textContent = data.status;
+            log.innerHTML += `<div class="info">${data.status}</div>`;
+            log.scrollTop = log.scrollHeight;
+          }
+          if (data.total && data.completed) {
+            const p = Math.min(100, Math.round((data.completed / data.total) * 100));
+            bar.style.width = p + '%';
+            pct.textContent = p + '%';
+          }
+          if (data.status === 'success') {
+            log.innerHTML += `<div class="ok">✅ ${name} 下载完成</div>`;
+            bar.style.width = '100%';
+            pct.textContent = '100%';
+            status.textContent = '完成';
+            refreshModelList();
+          }
+        } catch (e) {}
+      }
+    }
+  } catch(e) {
+    log.innerHTML += `<div class="err">❌ 下载失败: ${e.message}</div>`;
+  }
+  btn.disabled = false;
+}
+
+function fetchRecommendedModels() {
+  const el = document.getElementById('recommended-models');
+  el.classList.remove('hidden');
+  el.style.display = 'flex';
+}
+
+// ================================================================
+// SKILLS
+// ================================================================
+const SKILL_ICONS = {
+  system_control: '🔧', system_info: '🖥️', file_manager: '📁',
+  process_manager: '⚙️', network_diagnostic: '🌐', security_monitor: '🛡️',
+  code_executor: '💻', search: '🔍', draw: '🎨', translate: '🌍',
+  data_analyze: '📊', browser_automation: '🌐',
+};
+
+async function loadSkills() {
+  const grid = document.getElementById('skill-grid');
+  grid.innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center;grid-column:1/-1">加载中...</div>';
+  try {
+    const r = await fetch('/api/tools');
+    const d = await r.json();
+    const tools = d.tools || [];
+    if (tools.length === 0) {
+      grid.innerHTML = '<div style="color:var(--muted);padding:40px 0;text-align:center;grid-column:1/-1">暂无可用技能</div>';
+      return;
+    }
+    let html = '';
+    for (const t of tools) {
+      const name = t.function?.name || t.name || '?';
+      const desc = t.function?.description || t.description || '无说明';
+      const icon = SKILL_ICONS[name] || '🔌';
+      const params = t.function?.parameters?.properties;
+      const paramList = params ? Object.keys(params).join(', ') : '';
+      html += `<div class="skill-card">
+        <div class="s-icon">${icon}</div>
+        <div class="s-name">${name}</div>
+        <div class="s-desc">${desc}</div>
+        ${paramList ? `<div class="s-desc" style="margin-top:4px;font-family:monospace;font-size:11px">参数: ${paramList}</div>` : ''}
+      </div>`;
+    }
+    grid.innerHTML = html;
+  } catch(e) {
+    grid.innerHTML = `<div style="color:var(--danger);padding:40px 0;text-align:center;grid-column:1/-1">加载失败: ${e.message}</div>`;
+  }
+}
+
+// ================================================================
+// SYSTEM
+// ================================================================
+async function loadSystemInfo() {
+  try {
+    const r = await fetch('/api/system/info');
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    document.getElementById('si-platform').textContent = `${d.system?.platform || '-'} ${d.system?.platform_version || ''}`;
+    document.getElementById('si-hostname').textContent = d.system?.hostname || '-';
+    document.getElementById('si-python').textContent = d.system?.python_version?.split('(')[0]?.trim() || '-';
+    document.getElementById('si-cpu-cores').textContent = d.cpu?.cores ? `${d.cpu.cores} 核 (物理 ${d.cpu.cores_physical})` : '-';
+    document.getElementById('si-total-mem').textContent = d.memory?.total ? formatBytes(d.memory.total) : '-';
+    document.getElementById('si-boot').textContent = d.boot_time || '-';
+  } catch(e) {
+    document.getElementById('si-platform').textContent = '获取失败';
+  }
+}
+
+async function browseFiles(path) {
+  const grid = document.getElementById('file-grid');
+  const pInput = document.getElementById('fb-path');
+  if (path) pInput.value = path;
+  else path = pInput.value || '';
+  grid.innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center;grid-column:1/-1">加载中...</div>';
+  try {
+    const r = await fetch('/api/files/browse?path=' + encodeURIComponent(path));
+    if (!r.ok) throw new Error(r.statusText);
+    const d = await r.json();
+    pInput.value = d.current_path;
+    let html = '';
+    if (d.directories?.length) {
+      for (const dir of d.directories) {
+        html += `<div class="file-item" onclick="browseFiles('${dir.path.replace(/'/g,"\\'")}')" title="${dir.path}">
+          <span class="fi-icon">📁</span>
+          <span class="fi-name">${dir.name}/</span>
+        </div>`;
+      }
+    }
+    if (d.files?.length) {
+      for (const f of d.files) {
+        const icon = f.name.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i) ? '🖼️' :
+                     f.name.match(/\.(py|js|ts|rs|go|c|cpp|java)$/i) ? '📄' :
+                     f.name.match(/\.(json|yaml|yml|xml|toml|ini|cfg)$/i) ? '⚙️' :
+                     f.name.match(/\.(md|txt|log)$/i) ? '📝' : '📄';
+        html += `<div class="file-item" onclick="showFileInfo('${f.path.replace(/'/g,"\\'")}')" title="${f.path}">
+          <span class="fi-icon">${icon}</span>
+          <span class="fi-name">${f.name}</span>
+          <span class="fi-size">${formatBytes(f.size)}</span>
+        </div>`;
+      }
+    }
+    if (!d.directories?.length && !d.files?.length) {
+      html = '<div style="color:var(--muted);padding:40px 0;text-align:center;grid-column:1/-1">空目录</div>';
+    }
+    grid.innerHTML = html;
+  } catch(e) {
+    grid.innerHTML = `<div style="color:var(--danger);padding:40px 0;text-align:center;grid-column:1/-1">加载失败: ${e.message}</div>`;
+  }
+}
+
+function showFileInfo(path) {
+  const name = path.split(/[/\\]/).pop();
+  showModal('📄 ' + name, '路径: ' + path);
+}
+
+async function loadLogs() {
+  const box = document.getElementById('log-box');
+  box.innerHTML = '<div class="info">加载中...</div>';
+  try {
+    const r = await fetch('/api/logs?limit=100');
+    const d = await r.json();
+    const logs = d.logs || [];
+    if (logs.length === 0) {
+      box.innerHTML = '<div class="info">暂无日志</div>';
+      return;
+    }
+    let html = '';
+    for (const line of logs) {
+      const cls = line.includes('ERROR') || line.includes('error') ? 'err' :
+                  line.includes('WARN') || line.includes('warn') ? 'warn' :
+                  line.includes('INFO') ? 'info' : '';
+      html += `<div class="${cls}">${escHtml(line)}</div>`;
+    }
+    box.innerHTML = html;
+    box.scrollTop = box.scrollHeight;
+  } catch(e) {
+    box.innerHTML = `<div class="err">加载失败: ${e.message}</div>`;
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function toggleLogAutoRefresh() {
+  if (logAutoRefreshTimer) {
+    clearInterval(logAutoRefreshTimer);
+    logAutoRefreshTimer = null;
+  }
+  if (document.getElementById('log-auto-refresh').checked) {
+    logAutoRefreshTimer = setInterval(loadLogs, 5000);
+  }
+}
+
+async function loadMemoryCount() {
+  try {
+    const r = await fetch('/api/memory/count');
+    const d = await r.json();
+    document.getElementById('mem-count').textContent = d.count !== undefined ? d.count + ' 条' : '-';
+  } catch (_) {
+    document.getElementById('mem-count').textContent = '获取失败';
+  }
+}
+
+async function clearMemory() {
+  if (!confirm('确定清空所有记忆？系统会先创建备份。')) return;
+  try {
+    const r = await fetch('/api/memory/clear', {method:'DELETE'});
+    const d = await r.json();
+    showModal('清空记忆', d.status === 'success' ? `✅ 已清空\n备份: ${d.backup || '无需备份'}` : '❌ ' + (d.message || '失败'));
+    loadMemoryCount();
+  } catch(e) {
+    showModal('错误', e.message);
+  }
+}
+
+// ================================================================
+// CHAT
+// ================================================================
+function addMsg(role, text) {
+  const box = document.getElementById('chat-messages');
+  const empty = box.querySelector('div[style*="text-align:center"]');
+  if (empty) empty.remove();
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  div.appendChild(bubble);
+  const actions = document.createElement('div');
+  actions.className = 'msg-actions';
+  actions.innerHTML = `<button onclick="copyMsg(this)" title="复制">📋 复制</button>`;
+  div.appendChild(actions);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function updateLastMsg(text) {
+  const msgs = document.querySelectorAll('#chat-messages .msg .bubble');
+  if (msgs.length) msgs[msgs.length - 1].textContent = text;
+}
+
+function copyMsg(btn) {
+  const bubble = btn.closest('.msg').querySelector('.bubble');
+  if (!bubble) return;
+  navigator.clipboard.writeText(bubble.textContent).then(() => {
+    btn.textContent = '✅ 已复制';
+    setTimeout(() => { btn.textContent = '📋 复制'; }, 2000);
+  }).catch(() => {
+    const range = document.createRange();
+    range.selectNode(bubble);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    window.getSelection().removeAllRanges();
+    btn.textContent = '✅ 已复制';
+    setTimeout(() => { btn.textContent = '📋 复制'; }, 2000);
+  });
+}
+
+function copyAllChat() {
+  const bubbles = document.querySelectorAll('#chat-messages .msg .bubble');
+  if (!bubbles.length) return;
+  let text = '';
+  const msgs = document.querySelectorAll('#chat-messages .msg');
+  msgs.forEach((m, i) => {
+    const role = m.classList.contains('user') ? '👤 你' : '🤖 CogniCore';
+    const bubble = m.querySelector('.bubble');
+    if (bubble) text += `${role}:\n${bubble.textContent}\n\n`;
+  });
+  navigator.clipboard.writeText(text.trim()).then(() => {
+    showModal('✅ 已复制', '全部对话已复制到剪贴板');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text.trim();
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showModal('✅ 已复制', '全部对话已复制到剪贴板');
+  });
+}
+
+async function sendChat(message) {
+  if (chatPending) return;
+  const inp = document.getElementById('chat-input');
+  const msg = (message || inp.value).trim();
+  if (!msg && !attachedFile && !attachedImages.length) return;
+  let finalMsg = msg;
+  let finalImgs = [...attachedImages];
+  if (attachedFile && attachedFile.type === 'text') {
+    finalMsg = (msg ? msg + '\n\n' : '') + `[文件: ${attachedFile.name}]\n\`\`\`\n${attachedFile.content}\n\`\`\``;
+  }
+  attachedFile = null;
+  attachedImages = [];
+  document.getElementById('file-info').style.display = 'none';
+  document.getElementById('file-info').textContent = '';
+  inp.value = '';
+  lastUserMsg = finalMsg;
+  addMsg('user', finalMsg + (finalImgs.length ? ` [${finalImgs.length} 张图片]` : ''));
+  chatPending = true;
+  document.getElementById('chat-send').disabled = true;
+  document.getElementById('btn-regenerate').disabled = true;
+  addMsg('thinking', '思考中');
+  try {
+    const r = await fetch('/launcher/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({message: finalMsg, images: finalImgs})
+    });
+    const d = await r.json();
+    const last = document.querySelectorAll('#chat-messages .msg');
+    if (last.length) last[last.length - 1].className = 'msg assistant';
+    updateLastMsg(d.response || '(无回复)');
+    document.getElementById('btn-regenerate').disabled = false;
+  } catch(e) {
+    const last = document.querySelectorAll('#chat-messages .msg');
+    if (last.length) last[last.length - 1].className = 'msg assistant';
+    updateLastMsg('❌ ' + e.message);
+  }
+  chatPending = false;
+  document.getElementById('chat-send').disabled = false;
+}
+
+function regenerateLast() {
+  if (!lastUserMsg || chatPending) return;
+  sendChat(lastUserMsg);
+}
+
+function clearChat() {
+  document.getElementById('chat-messages').innerHTML =
+    '<div style="color:var(--muted);text-align:center;padding:60px 20px;flex:1;display:flex;align-items:center;justify-content:center">输入消息开始对话</div>';
+  document.getElementById('btn-regenerate').disabled = true;
+  lastUserMsg = '';
+}
+
+function handlePaste(e) {
+  const items = e.clipboardData.items;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (!file) continue;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const b64 = ev.target.result.split(',')[1];
+        attachedImages.push(b64);
+        document.getElementById('file-info').style.display = 'block';
+        document.getElementById('file-info').textContent = `🖼️ 粘贴图片 (${(file.size / 1024).toFixed(1)} KB) - 共 ${attachedImages.length} 张图片`;
+      };
+      reader.readAsDataURL(file);
+      break;
+    }
+  }
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const b64 = ev.target.result.split(',')[1];
+      attachedImages.push(b64);
+      document.getElementById('file-info').style.display = 'block';
+      document.getElementById('file-info').textContent = `🖼️ ${file.name} (${(file.size / 1024).toFixed(1)} KB) - 共 ${attachedImages.length} 张图片`;
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    attachedFile = { name: file.name, content: ev.target.result, type: 'text' };
+    document.getElementById('file-info').style.display = 'block';
+    document.getElementById('file-info').textContent = `📎 ${file.name} (${(file.size / 1024).toFixed(1)} KB) - 按发送上传内容`;
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+// ================================================================
+// INIT
+// ================================================================
+refreshDashboard();
+loadCognitionStats();
+loadCircuitStatus();
+loadSkills();
+loadSystemInfo();
+loadMemoryCount();
+
+setInterval(refreshDashboard, 5000);
+setInterval(loadCognitionStats, 15000);
+setInterval(loadCircuitStatus, 15000);
+</script>
+</body>
+</html>

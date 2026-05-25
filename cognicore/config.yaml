@@ -1,0 +1,14 @@
+logging:
+  file: logs/app.log
+  level: INFO
+memory:
+  directory: memory
+  enabled: true
+  vector_db_path: data/vector_db
+  vector_model: nomic-embed-text-v2-moe:latest
+models:
+  default: gemma3:1b
+  ollama_url: http://192.168.3.105:11434
+server:
+  host: 0.0.0.0
+  port: 8002
